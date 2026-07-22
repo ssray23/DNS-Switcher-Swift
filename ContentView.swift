@@ -99,12 +99,15 @@ struct ContentView: View {
                     
                     Spacer()
                     
-                    Button("Manage") {
+                    Button(action: {
                         dnsManager.openPrivateRelaySettings()
+                    }) {
+                        Text("Manage...")
+                            .fontWeight(.medium)
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.bordered)
+                    .tint(.blue)
                     .controlSize(.small)
-                    .tint(.gray.opacity(0.3))
                 }
             }
             .padding(12)
@@ -113,33 +116,50 @@ struct ContentView: View {
             
             // Mode Control Buttons
             VStack(spacing: 8) {
+                // Stream Mode Button
                 Button(action: {
                     dnsManager.switchMode(to: .stream)
                 }) {
-                    HStack {
+                    HStack(spacing: 8) {
                         Image(systemName: "play.tv.fill")
-                        Text("Switch to Stream Mode (SmartDNS)")
+                        Text(dnsManager.currentMode == .stream ? "In Stream Mode" : "Switch to Stream Mode (SmartDNS)")
                             .fontWeight(.semibold)
                     }
+                    .font(.body)
+                    .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
+                    .padding(.vertical, 9)
+                    .background(
+                        dnsManager.currentMode == .stream 
+                            ? Color.green.opacity(0.55) 
+                            : Color.green
+                    )
+                    .cornerRadius(8)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(.green)
+                .buttonStyle(.plain)
                 .disabled(dnsManager.isUpdating || dnsManager.currentMode == .stream)
                 
+                // Normal Mode Button
                 Button(action: {
                     dnsManager.switchMode(to: .normal)
                 }) {
-                    HStack {
+                    HStack(spacing: 8) {
                         Image(systemName: "globe")
-                        Text("Switch to Normal Mode (Automatic)")
+                        Text(dnsManager.currentMode == .normal ? "In Normal Mode" : "Switch to Normal Mode (Automatic)")
                             .fontWeight(.semibold)
                     }
+                    .font(.body)
+                    .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
+                    .padding(.vertical, 9)
+                    .background(
+                        dnsManager.currentMode == .normal 
+                            ? Color.blue.opacity(0.5) 
+                            : Color.blue
+                    )
+                    .cornerRadius(8)
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.plain)
                 .disabled(dnsManager.isUpdating || dnsManager.currentMode == .normal)
             }
             
@@ -212,6 +232,16 @@ struct ContentView: View {
         }
         .padding(16)
         .frame(width: 340)
+        .onAppear {
+            dnsManager.refresh()
+            dnsManager.startAutoRefresh()
+        }
+        .onDisappear {
+            dnsManager.stopAutoRefresh()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            dnsManager.refresh()
+        }
     }
     
     private func relayColor(_ status: PrivateRelayStatus) -> Color {

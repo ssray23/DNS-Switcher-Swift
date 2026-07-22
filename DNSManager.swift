@@ -24,7 +24,40 @@ class DNSManager: ObservableObject {
     @Published var isUpdating: Bool = false
     @Published var lastMessage: String? = nil
     
+    private var refreshTimer: Timer?
+    
     init() {
+        refresh()
+        setupNotificationObservers()
+        startAutoRefresh()
+    }
+    
+    deinit {
+        stopAutoRefresh()
+    }
+    
+    func startAutoRefresh() {
+        guard refreshTimer == nil else { return }
+        refreshTimer = Timer.scheduledTimer(withTimeInterval: 2.5, repeats: true) { [weak self] _ in
+            self?.refresh()
+        }
+    }
+    
+    func stopAutoRefresh() {
+        refreshTimer?.invalidate()
+        refreshTimer = nil
+    }
+    
+    private func setupNotificationObservers() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleAppDidBecomeActive),
+            name: NSApplication.didBecomeActiveNotification,
+            object: nil
+        )
+    }
+    
+    @objc private func handleAppDidBecomeActive() {
         refresh()
     }
     
@@ -114,6 +147,11 @@ class DNSManager: ObservableObject {
     func openPrivateRelaySettings() {
         if let url = URL(string: "x-apple.systempreferences:com.apple.systempreferences.AppleIDSettings?email/prefs/accountDetails?path=InternetPrivacy") {
             NSWorkspace.shared.open(url)
+        }
+        for delay in [1.0, 3.0, 5.0, 8.0] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                self?.refresh()
+            }
         }
     }
     

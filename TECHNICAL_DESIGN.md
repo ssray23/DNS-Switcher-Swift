@@ -68,14 +68,20 @@ The application follows an Event-Driven MVVM Architecture using SwiftUI and Comb
    - `1` = Active (or Paused if specific network status != 1)
    - `2` = Paused
    - `Other` = Off
-4. **Privileged Command Execution**:
+4. **Automatic Real-time Status Refreshing**:
+   - **Background Polling**: Runs a lightweight background timer (2.5s interval) while the application menu popover is open.
+   - **App Activation Observer**: Listens for `NSApplication.didBecomeActiveNotification` to immediately trigger a state refresh when the user returns to DNS Switcher after modifying Private Relay settings in macOS System Settings.
+5. **Privileged Command Execution**:
    To update network DNS configuration and clear DNS caches without requiring the application to run as root, `DNSManager` constructs shell script pipelines executed via `NSAppleScript` with administrator authorization (`do shell script ... with administrator privileges`). Single-quoted interface arguments prevent AppleScript string escaping vulnerabilities.
 
 ### 3.3 `ContentView.swift` (UI & User Experience)
 - **Role**: Modern SwiftUI View rendered inside the menu bar popover.
 - **Features**:
   - **Status Card**: Visual badges displaying the current active interface, active DNS IPs, and color-coded Private Relay state badge.
-  - **Mode Toggle Action Buttons**: Prominent action buttons for **Stream Mode** (SmartDNSProxy) and **Normal Mode** (Automatic DHCP).
+  - **Dynamic Mode Action Buttons**:
+    - **Stream Mode Button**: Displays active bright green (`Color.green`) with `"Switch to Stream Mode (SmartDNS)"` when in Normal Mode; displays dimmed green (`Color.green.opacity(0.55)`) with `"In Stream Mode"` when disabled in Stream Mode.
+    - **Normal Mode Button**: Displays active bright macOS blue (`Color.blue`) with `"Switch to Normal Mode (Automatic)"` when in Stream Mode; displays dimmed blue (`Color.blue.opacity(0.5)`) with `"In Normal Mode"` when disabled in Normal Mode.
+  - **Manage... Button**: Styled with a native macOS bordered button style (`.buttonStyle(.bordered)` with `.tint(.blue)`), giving it a clear interactive border and hover/pressed states.
   - **Multiline Note Box**: Uses `.lineLimit(nil)` and `.fixedSize(horizontal: false, vertical: true)` to ensure instructions and Safari streaming notes wrap dynamically without truncation.
   - **Quick Utility Toolbar**: One-click DNS cache flush (`dscacheutil -flushcache && killall -HUP mDNSResponder`), direct preferences link, and SmartDNSProxy web portal launcher.
 
