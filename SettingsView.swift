@@ -47,7 +47,7 @@ struct SettingsView: View {
             
             Divider()
             
-            ScrollView(showsIndicators: false) {
+            ScrollView(.vertical, showsIndicators: true) {
                 VStack(alignment: .leading, spacing: 16) {
                     // Quick European & Popular Presets
                     VStack(alignment: .leading, spacing: 8) {
@@ -152,8 +152,9 @@ struct SettingsView: View {
                     .background(Color(NSColor.controlBackgroundColor))
                     .cornerRadius(8)
                 }
+                .padding(.trailing, 2)
             }
-            .frame(maxHeight: 280)
+            .frame(maxHeight: 440)
             
             Divider()
             
@@ -227,6 +228,6 @@ struct SettingsView: View {
             }
         }
         .padding(16)
-        .frame(width: 350)
+        .frame(width: 360)
     }
 }

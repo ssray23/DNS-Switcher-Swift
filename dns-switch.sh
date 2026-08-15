@@ -17,14 +17,14 @@
 #   bash dns-switch.sh status  → Show current DNS
 # ─────────────────────────────────────────────
 
-# Option 1 (Active)
+# Amsterdam + Seoul (Active)
 SMART_DNS="46.166.189.68 13.125.194.42"
 
-# Option 2
-# SMART_DNS="23.21.43.50 82.103.129.72"
+# London + Frankfurt
+# SMART_DNS="35.178.60.174 54.93.173.153"
 
-# Previous IPs
-# SMART_DNS="35.178.60.174 45.77.61.165"
+# US East + Copenhagen
+# SMART_DNS="23.21.43.50 82.103.129.72"
 
 # ANSI Colors
 GREEN="\033[0;32m"

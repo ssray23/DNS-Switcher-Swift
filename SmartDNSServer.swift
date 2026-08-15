@@ -100,8 +100,8 @@ public struct SmartDNSCatalog {
         ServerPairPreset(id: "london_paris", name: "🇬🇧 London + 🇫🇷 Paris", primary: london, secondary: paris),
         ServerPairPreset(id: "london_amsterdam", name: "🇬🇧 London + 🇳🇱 Amsterdam", primary: london, secondary: amsterdam),
         ServerPairPreset(id: "london_dublin", name: "🇬🇧 London + 🇮🇪 Dublin", primary: london, secondary: dublin),
-        ServerPairPreset(id: "amsterdam_seoul", name: "🇳🇱 Amsterdam + 🇰🇷 Seoul (Option 1)", primary: amsterdam, secondary: seoul),
-        ServerPairPreset(id: "us_copenhagen", name: "🇺🇸 US East + 🇩🇰 Copenhagen (Option 2)", primary: usVirginia, secondary: copenhagen),
+        ServerPairPreset(id: "amsterdam_seoul", name: "🇳🇱 Amsterdam + 🇰🇷 Seoul", primary: amsterdam, secondary: seoul),
+        ServerPairPreset(id: "us_copenhagen", name: "🇺🇸 US East + 🇩🇰 Copenhagen", primary: usVirginia, secondary: copenhagen),
         ServerPairPreset(id: "frankfurt_zurich", name: "🇩🇪 Frankfurt + 🇨🇭 Zurich", primary: frankfurt, secondary: zurich),
         ServerPairPreset(id: "madrid_milan", name: "🇪🇸 Madrid + 🇮🇹 Milan", primary: madrid, secondary: milan)
     ]

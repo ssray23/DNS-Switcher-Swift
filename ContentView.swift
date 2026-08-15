@@ -286,7 +286,7 @@ struct ContentView: View {
             .padding(.top, 4)
         }
         .padding(16)
-        .frame(width: 350)
+        .frame(width: 360)
     }
     
     @ViewBuilder
