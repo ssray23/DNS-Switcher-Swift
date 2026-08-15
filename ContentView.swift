@@ -2,8 +2,31 @@ import SwiftUI
 
 struct ContentView: View {
     @ObservedObject var dnsManager: DNSManager
+    @State private var showingSettings: Bool = false
     
     var body: some View {
+        Group {
+            if showingSettings {
+                SettingsView(dnsManager: dnsManager) {
+                    showingSettings = false
+                }
+            } else {
+                mainView
+            }
+        }
+        .onAppear {
+            dnsManager.refresh()
+            dnsManager.startAutoRefresh()
+        }
+        .onDisappear {
+            dnsManager.stopAutoRefresh()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            dnsManager.refresh()
+        }
+    }
+    
+    private var mainView: some View {
         VStack(alignment: .leading, spacing: 16) {
             // Header Bar
             HStack {
@@ -17,6 +40,16 @@ struct ContentView: View {
                 }
                 
                 Spacer()
+                
+                Button(action: {
+                    showingSettings = true
+                }) {
+                    Image(systemName: "gearshape")
+                        .font(.body)
+                }
+                .buttonStyle(.plain)
+                .help("Server Settings")
+                .padding(.trailing, 4)
                 
                 Button(action: {
                     dnsManager.refresh()
@@ -61,7 +94,16 @@ struct ContentView: View {
                                 Text(ip)
                                     .font(.system(.body, design: .monospaced))
                                     .fontWeight(.medium)
-                                if DNSManager.smartDNSIPs.contains(ip) {
+                                
+                                if let server = dnsManager.serverForIP(ip) {
+                                    Text("\(server.flag) \(server.city)")
+                                        .font(.caption2)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(Color.green.opacity(0.2))
+                                        .foregroundColor(.green)
+                                        .cornerRadius(4)
+                                } else if dnsManager.activeSmartDNSIPs.contains(ip) {
                                     Text("SmartDNS")
                                         .font(.caption2)
                                         .padding(.horizontal, 6)
@@ -106,6 +148,26 @@ struct ContentView: View {
             .padding(12)
             .background(Color(NSColor.controlBackgroundColor))
             .cornerRadius(10)
+            
+            // Active Server Preset Target
+            HStack {
+                Text("Target:")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                Text("\(dnsManager.primaryServer.flag) \(dnsManager.primaryServer.city) + \(dnsManager.secondaryServer.flag) \(dnsManager.secondaryServer.city)")
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.primary)
+                
+                Spacer()
+                
+                Button("Change Servers...") {
+                    showingSettings = true
+                }
+                .font(.caption2)
+                .buttonStyle(.link)
+            }
+            .padding(.horizontal, 2)
             
             // Mode Control Buttons
             VStack(spacing: 8) {
@@ -224,17 +286,7 @@ struct ContentView: View {
             .padding(.top, 4)
         }
         .padding(16)
-        .frame(width: 340)
-        .onAppear {
-            dnsManager.refresh()
-            dnsManager.startAutoRefresh()
-        }
-        .onDisappear {
-            dnsManager.stopAutoRefresh()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-            dnsManager.refresh()
-        }
+        .frame(width: 350)
     }
     
     @ViewBuilder

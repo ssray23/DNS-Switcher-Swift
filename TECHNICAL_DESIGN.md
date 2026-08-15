@@ -48,9 +48,18 @@ The application follows an Event-Driven MVVM Architecture using SwiftUI and Comb
 - **Implementation**: Uses SwiftUI `MenuBarExtra` scene with `.window` style.
 - **Agent Mode**: Configured with `LSUIElement = true` in `Info.plist`, hiding the application from the Dock and command-tab switcher to operate seamlessly as a lightweight menu bar utility.
 
-### 3.2 `DNSManager.swift` (Service & Business Logic Model)
-- **Role**: `ObservableObject` handling network status queries, system command executions, and state management.
+### 3.2 `SmartDNSServer.swift` (Server Catalog & Presets)
+- **Role**: Data model cataloging worldwide SmartDNSProxy servers and paired configurations.
+- **Features**:
+  - Structured `SmartDNSServer` with city, country, flag icon, IP address, and geographical region.
+  - Full catalog covering UK & Europe (London, Frankfurt, Paris, Amsterdam, Dublin, Copenhagen, Madrid, Milan, Zurich, Stockholm, Istanbul), North America, Asia-Pacific, Middle East, and Latin America.
+  - Curated `ServerPairPreset` definitions for instant 2-server switching (e.g. `London + Frankfurt`, `London + Paris`, `Amsterdam + Seoul`, `US East + Copenhagen`).
+
+### 3.3 `DNSManager.swift` (Service & Business Logic Model)
+- **Role**: `ObservableObject` handling network status queries, server pair management, system command executions, and state management.
 - **Published Properties**:
+  - `primaryServer` & `secondaryServer`: Selected primary and secondary SmartDNS server instances, automatically persisted in `UserDefaults`.
+  - `activeSmartDNSIPs`: Dynamic array of IPs configured from selected server models.
   - `wifiInterface`: Auto-detected active Wi-Fi interface (e.g., `Wi-Fi`).
   - `currentDNS`: Active DNS IP server addresses.
   - `currentMode`: Active mode (`.stream`, `.normal`, `.custom`, or `.unknown`).
@@ -63,9 +72,9 @@ The application follows an Event-Driven MVVM Architecture using SwiftUI and Comb
    Runs `/usr/sbin/networksetup -listallnetworkservices` to find the active Wi-Fi/Airport service.
 2. **DNS Retrieval & State Classification**:
    Runs `/usr/sbin/networksetup -getdnsservers <interface>` to extract current DNS server configurations.
-   - If current servers match active `smartDNSIPs` (`46.166.189.68`, `13.125.194.42`), mode is `.stream`.
+   - If current servers match active `activeSmartDNSIPs` or known SmartDNS catalog servers, mode is `.stream`.
    - If empty (or DHCP unset), mode is `.normal` (`Automatic (DHCP / Router)`).
-   - If manual DNS IPs are present that do not match active SmartDNS IPs, mode is `.custom` (`MANUAL DNS`), ensuring user can switch directly to either Stream or Normal mode.
+   - If other manual DNS IPs are present, mode is `.custom` (`MANUAL DNS`), ensuring the user can switch directly to either Stream or Normal mode.
 3. **iCloud Private Relay Parsing**:
    Reads macOS `com.apple.networkserviceproxy` defaults export. Evaluates the nested `NSPServiceStatusManagerInfo` binary property list to check `PrivacyProxyServiceStatus`:
    - `1` = Active (or Paused if specific network status != 1)
@@ -77,10 +86,18 @@ The application follows an Event-Driven MVVM Architecture using SwiftUI and Comb
 5. **Privileged Command Execution**:
    To update network DNS configuration and clear DNS caches without requiring the application to run as root, `DNSManager` constructs shell script pipelines executed via `NSAppleScript` with administrator authorization (`do shell script ... with administrator privileges`). Single-quoted interface arguments prevent AppleScript string escaping vulnerabilities.
 
-### 3.3 `ContentView.swift` (UI & User Experience)
+### 3.4 `SettingsView.swift` (Server Pair Selection & Presets)
+- **Role**: Dedicated SwiftUI settings panel accessible via the gear button in the header.
+- **Features**:
+  - **Quick Presets**: 1-click European and global 2-server paired presets.
+  - **Custom Pickers**: Independent Primary and Secondary city dropdown pickers categorized by geographical region.
+  - **Save & Apply**: Ability to save configuration or immediately apply to macOS network interface.
+
+### 3.5 `ContentView.swift` (Main Dashboard View)
 - **Role**: Modern SwiftUI View rendered inside the menu bar popover.
 - **Features**:
-  - **Status Card**: Visual badges (`modeBadgeView`) displaying current active interface, active DNS IPs, mode status (`⚡ STREAMING`, `🌐 AUTOMATIC`, or `⚙️ MANUAL DNS`), and color-coded Private Relay state badge.
+  - **Status Card**: Visual badges (`modeBadgeView`) displaying current active interface, active DNS IPs with city/flag badges, mode status (`⚡ STREAMING`, `🌐 AUTOMATIC`, or `⚙️ MANUAL DNS`), and color-coded Private Relay state badge.
+  - **Active Target Indicator**: Displays selected target server pair (e.g. `🇳🇱 Amsterdam + 🇰🇷 Seoul`) with quick access to settings.
   - **Dynamic Mode Action Buttons**:
     - **Stream Mode Button**: Displays active bright green (`Color.green`) with `"Switch to Stream Mode (SmartDNS)"` when not in Stream Mode; displays dimmed green (`Color.green.opacity(0.55)`) with `"In Stream Mode"` when disabled in Stream Mode.
     - **Normal Mode Button**: Displays active bright macOS blue (`Color.blue`) with `"Switch to Normal Mode (Automatic)"` when not in Normal Mode; displays dimmed blue (`Color.blue.opacity(0.5)`) with `"In Normal Mode"` when disabled in Normal Mode.

@@ -19,7 +19,7 @@ echo "Compiling Swift files..."
 swiftc -O \
     -parse-as-library \
     -target arm64-apple-macosx13.0 \
-    DNS_SwitcherApp.swift ContentView.swift DNSManager.swift \
+    DNS_SwitcherApp.swift ContentView.swift SettingsView.swift SmartDNSServer.swift DNSManager.swift \
     -o "${BUILD_TMP}/DNS Switcher"
 
 echo "Creating App Bundle..."

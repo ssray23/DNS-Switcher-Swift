@@ -16,14 +16,27 @@ enum PrivateRelayStatus: String {
 }
 
 class DNSManager: ObservableObject {
-    // Option 1 (Active)
-    static let smartDNSIPs = ["46.166.189.68", "13.125.194.42"]
+    private static let primaryServerKey = "DNSManager_PrimaryServerId"
+    private static let secondaryServerKey = "DNSManager_SecondaryServerId"
     
-    // Option 2
-    // static let smartDNSIPs = ["23.21.43.50", "82.103.129.72"]
+    @Published var primaryServer: SmartDNSServer {
+        didSet {
+            UserDefaults.standard.set(primaryServer.id, forKey: DNSManager.primaryServerKey)
+        }
+    }
     
-    // Previous IPs
-    // static let smartDNSIPs = ["35.178.60.174", "45.77.61.165"]
+    @Published var secondaryServer: SmartDNSServer {
+        didSet {
+            UserDefaults.standard.set(secondaryServer.id, forKey: DNSManager.secondaryServerKey)
+        }
+    }
+    
+    var activeSmartDNSIPs: [String] {
+        if primaryServer.ip == secondaryServer.ip {
+            return [primaryServer.ip]
+        }
+        return [primaryServer.ip, secondaryServer.ip]
+    }
     
     @Published var wifiInterface: String = "Wi-Fi"
     @Published var currentDNS: [String] = []
@@ -35,6 +48,12 @@ class DNSManager: ObservableObject {
     private var refreshTimer: Timer?
     
     init() {
+        let primaryId = UserDefaults.standard.string(forKey: DNSManager.primaryServerKey) ?? "nl_amsterdam"
+        let secondaryId = UserDefaults.standard.string(forKey: DNSManager.secondaryServerKey) ?? "kr_seoul"
+        
+        self.primaryServer = SmartDNSCatalog.findServer(byId: primaryId) ?? SmartDNSCatalog.amsterdam
+        self.secondaryServer = SmartDNSCatalog.findServer(byId: secondaryId) ?? SmartDNSCatalog.seoul
+        
         refresh()
         setupNotificationObservers()
         startAutoRefresh()
@@ -42,6 +61,21 @@ class DNSManager: ObservableObject {
     
     deinit {
         stopAutoRefresh()
+    }
+    
+    func updateServers(primary: SmartDNSServer, secondary: SmartDNSServer, applyImmediately: Bool = true) {
+        self.primaryServer = primary
+        self.secondaryServer = secondary
+        
+        if applyImmediately {
+            switchMode(to: .stream)
+        } else {
+            refresh()
+        }
+    }
+    
+    func serverForIP(_ ip: String) -> SmartDNSServer? {
+        SmartDNSCatalog.findServer(byIP: ip)
     }
     
     func startAutoRefresh() {
@@ -71,11 +105,16 @@ class DNSManager: ObservableObject {
     
     func refresh() {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let interface = self?.detectWiFiInterface() ?? "Wi-Fi"
-            let dnsServers = self?.fetchDNSServers(interface: interface) ?? []
-            let relay = self?.fetchPrivateRelayStatus() ?? .off
+            guard let self = self else { return }
+            let interface = self.detectWiFiInterface()
+            let dnsServers = self.fetchDNSServers(interface: interface)
+            let relay = self.fetchPrivateRelayStatus()
             
-            let isStream = !dnsServers.isEmpty && dnsServers.allSatisfy { DNSManager.smartDNSIPs.contains($0) }
+            let activeIPs = self.activeSmartDNSIPs
+            let isStream = !dnsServers.isEmpty && (
+                dnsServers.allSatisfy { activeIPs.contains($0) } ||
+                dnsServers.allSatisfy { SmartDNSCatalog.findServer(byIP: $0) != nil }
+            )
             let isAutomatic = dnsServers.isEmpty
             
             let mode: DNSMode
@@ -88,10 +127,10 @@ class DNSManager: ObservableObject {
             }
             
             DispatchQueue.main.async {
-                self?.wifiInterface = interface
-                self?.currentDNS = dnsServers
-                self?.currentMode = mode
-                self?.relayStatus = relay
+                self.wifiInterface = interface
+                self.currentDNS = dnsServers
+                self.currentMode = mode
+                self.relayStatus = relay
             }
         }
     }
@@ -105,7 +144,7 @@ class DNSManager: ObservableObject {
             let interface = self.wifiInterface
             let dnsArgs: String
             if targetMode == .stream {
-                dnsArgs = DNSManager.smartDNSIPs.joined(separator: " ")
+                dnsArgs = self.activeSmartDNSIPs.joined(separator: " ")
             } else {
                 dnsArgs = "Empty"
             }
