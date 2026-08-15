@@ -54,49 +54,68 @@ struct SettingsView: View {
                         HStack {
                             Image(systemName: "sparkles")
                                 .foregroundColor(.orange)
-                            Text("Quick Presets (UK & Europe)")
+                            Text("Saved Presets (UK & Europe)")
                                 .font(.caption)
                                 .fontWeight(.bold)
                                 .foregroundColor(.secondary)
                         }
                         
                         VStack(spacing: 6) {
-                            ForEach(SmartDNSCatalog.presets) { preset in
+                            ForEach(dnsManager.presets) { preset in
                                 let isSelected = (selectedPrimary == preset.primary && selectedSecondary == preset.secondary)
-                                Button(action: {
-                                    selectedPrimary = preset.primary
-                                    selectedSecondary = preset.secondary
-                                }) {
-                                    HStack {
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text(preset.name)
-                                                .font(.caption)
-                                                .fontWeight(isSelected ? .bold : .medium)
-                                                .foregroundColor(isSelected ? .blue : .primary)
-                                            
-                                            Text("\(preset.primary.ip)  •  \(preset.secondary.ip)")
-                                                .font(.system(size: 10, design: .monospaced))
-                                                .foregroundColor(.secondary)
-                                        }
-                                        
-                                        Spacer()
-                                        
+                                HStack(spacing: 0) {
+                                    Button(action: {
                                         if isSelected {
-                                            Image(systemName: "checkmark.circle.fill")
-                                                .foregroundColor(.blue)
-                                                .font(.caption)
+                                            // Keep selected or allow re-selection
+                                        } else {
+                                            selectedPrimary = preset.primary
+                                            selectedSecondary = preset.secondary
                                         }
+                                    }) {
+                                        HStack {
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text(preset.name)
+                                                    .font(.caption)
+                                                    .fontWeight(isSelected ? .bold : .medium)
+                                                    .foregroundColor(isSelected ? .blue : .primary)
+                                                
+                                                Text("\(preset.primary.ip)  •  \(preset.secondary.ip)")
+                                                    .font(.system(size: 10, design: .monospaced))
+                                                    .foregroundColor(.secondary)
+                                            }
+                                            
+                                            Spacer()
+                                            
+                                            if isSelected {
+                                                Image(systemName: "checkmark.circle.fill")
+                                                    .foregroundColor(.blue)
+                                                    .font(.caption)
+                                            }
+                                        }
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 7)
                                     }
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 7)
-                                    .background(isSelected ? Color.blue.opacity(0.12) : Color(NSColor.controlBackgroundColor))
-                                    .cornerRadius(8)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .stroke(isSelected ? Color.blue.opacity(0.4) : Color.clear, lineWidth: 1)
-                                    )
+                                    .buttonStyle(.plain)
+                                    
+                                    if preset.isCustom {
+                                        Button(action: {
+                                            dnsManager.removePreset(byId: preset.id)
+                                        }) {
+                                            Image(systemName: "trash")
+                                                .font(.caption2)
+                                                .foregroundColor(.secondary)
+                                                .padding(.trailing, 8)
+                                        }
+                                        .buttonStyle(.plain)
+                                        .help("Remove Custom Preset")
+                                    }
                                 }
-                                .buttonStyle(.plain)
+                                .background(isSelected ? Color.blue.opacity(0.12) : Color(NSColor.controlBackgroundColor))
+                                .cornerRadius(8)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(isSelected ? Color.blue.opacity(0.4) : Color.clear, lineWidth: 1)
+                                    )
                             }
                         }
                     }
@@ -158,7 +177,7 @@ struct SettingsView: View {
             
             Divider()
             
-            // Selected Summary & Apply Buttons
+            // Selected Summary & Matching Height Action Buttons
             VStack(spacing: 8) {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
@@ -173,7 +192,7 @@ struct SettingsView: View {
                     Spacer()
                     
                     if showAppliedAlert {
-                        Text("Saved!")
+                        Text(dnsManager.isPresetSaved(primary: selectedPrimary, secondary: selectedSecondary) ? "Saved!" : "Unsaved!")
                             .font(.caption)
                             .foregroundColor(.green)
                             .fontWeight(.bold)
@@ -181,9 +200,16 @@ struct SettingsView: View {
                     }
                 }
                 
-                HStack(spacing: 8) {
+                HStack(spacing: 10) {
+                    // Save / Unsave Button
+                    let isSaved = dnsManager.isPresetSaved(primary: selectedPrimary, secondary: selectedSecondary)
+                    
                     Button(action: {
-                        dnsManager.updateServers(primary: selectedPrimary, secondary: selectedSecondary, applyImmediately: false)
+                        if isSaved {
+                            dnsManager.unsavePreset(primary: selectedPrimary, secondary: selectedSecondary)
+                        } else {
+                            dnsManager.savePreset(primary: selectedPrimary, secondary: selectedSecondary)
+                        }
                         withAnimation {
                             showAppliedAlert = true
                         }
@@ -191,17 +217,28 @@ struct SettingsView: View {
                             withAnimation {
                                 showAppliedAlert = false
                             }
-                            onBack()
                         }
                     }) {
-                        Text("Save Preset")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 7)
+                        HStack(spacing: 5) {
+                            Image(systemName: isSaved ? "bookmark.slash" : "bookmark.fill")
+                                .font(.caption)
+                            Text(isSaved ? "Unsave Preset" : "Save Preset")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                        }
+                        .foregroundColor(isSaved ? .red : .primary)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 36)
+                        .background(Color(NSColor.controlBackgroundColor))
+                        .cornerRadius(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(isSaved ? Color.red.opacity(0.35) : Color.secondary.opacity(0.25), lineWidth: 1)
+                        )
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.plain)
                     
+                    // Apply to Wi-Fi Button
                     Button(action: {
                         dnsManager.updateServers(primary: selectedPrimary, secondary: selectedSecondary, applyImmediately: true)
                         withAnimation {
@@ -211,17 +248,18 @@ struct SettingsView: View {
                             onBack()
                         }
                     }) {
-                        HStack(spacing: 4) {
+                        HStack(spacing: 5) {
                             Image(systemName: "bolt.fill")
+                                .font(.caption)
                             Text("Apply to Wi-Fi")
+                                .font(.caption)
+                                .fontWeight(.semibold)
                         }
-                        .font(.caption)
-                        .fontWeight(.semibold)
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 7)
+                        .frame(height: 36)
                         .background(Color.green)
-                        .cornerRadius(6)
+                        .cornerRadius(8)
                     }
                     .buttonStyle(.plain)
                 }

@@ -18,6 +18,7 @@ enum PrivateRelayStatus: String {
 class DNSManager: ObservableObject {
     private static let primaryServerKey = "DNSManager_PrimaryServerId"
     private static let secondaryServerKey = "DNSManager_SecondaryServerId"
+    private static let presetsKey = "DNSManager_PresetsKey_v2"
     
     @Published var primaryServer: SmartDNSServer {
         didSet {
@@ -30,6 +31,8 @@ class DNSManager: ObservableObject {
             UserDefaults.standard.set(secondaryServer.id, forKey: DNSManager.secondaryServerKey)
         }
     }
+    
+    @Published var presets: [ServerPairPreset] = []
     
     var activeSmartDNSIPs: [String] {
         if primaryServer.ip == secondaryServer.ip {
@@ -54,9 +57,47 @@ class DNSManager: ObservableObject {
         self.primaryServer = SmartDNSCatalog.findServer(byId: primaryId) ?? SmartDNSCatalog.amsterdam
         self.secondaryServer = SmartDNSCatalog.findServer(byId: secondaryId) ?? SmartDNSCatalog.seoul
         
+        if let data = UserDefaults.standard.data(forKey: DNSManager.presetsKey),
+           let saved = try? JSONDecoder().decode([ServerPairPreset].self, from: data),
+           !saved.isEmpty {
+            self.presets = saved
+        } else {
+            self.presets = SmartDNSCatalog.presets
+        }
+        
         refresh()
         setupNotificationObservers()
         startAutoRefresh()
+    }
+    
+    private func persistPresets() {
+        if let data = try? JSONEncoder().encode(presets) {
+            UserDefaults.standard.set(data, forKey: DNSManager.presetsKey)
+        }
+    }
+    
+    func isPresetSaved(primary: SmartDNSServer, secondary: SmartDNSServer) -> Bool {
+        presets.contains(where: { $0.primary == primary && $0.secondary == secondary })
+    }
+    
+    func savePreset(primary: SmartDNSServer, secondary: SmartDNSServer, name: String? = nil) {
+        if isPresetSaved(primary: primary, secondary: secondary) {
+            return
+        }
+        let presetName = name ?? "\(primary.flag) \(primary.city) + \(secondary.flag) \(secondary.city)"
+        let newPreset = ServerPairPreset(id: UUID().uuidString, name: presetName, primary: primary, secondary: secondary, isCustom: true)
+        presets.append(newPreset)
+        persistPresets()
+    }
+    
+    func unsavePreset(primary: SmartDNSServer, secondary: SmartDNSServer) {
+        presets.removeAll(where: { $0.primary == primary && $0.secondary == secondary })
+        persistPresets()
+    }
+    
+    func removePreset(byId id: String) {
+        presets.removeAll(where: { $0.id == id })
+        persistPresets()
     }
     
     deinit {

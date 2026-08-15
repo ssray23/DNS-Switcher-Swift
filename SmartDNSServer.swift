@@ -25,11 +25,20 @@ public struct SmartDNSServer: Identifiable, Hashable, Codable, Equatable {
     }
 }
 
-public struct ServerPairPreset: Identifiable, Hashable {
+public struct ServerPairPreset: Identifiable, Hashable, Codable, Equatable {
     public let id: String
     public let name: String
     public let primary: SmartDNSServer
     public let secondary: SmartDNSServer
+    public var isCustom: Bool
+    
+    public init(id: String, name: String, primary: SmartDNSServer, secondary: SmartDNSServer, isCustom: Bool = false) {
+        self.id = id
+        self.name = name
+        self.primary = primary
+        self.secondary = secondary
+        self.isCustom = isCustom
+    }
 }
 
 public struct SmartDNSCatalog {
