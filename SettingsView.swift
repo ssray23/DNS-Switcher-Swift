@@ -221,18 +221,18 @@ struct SettingsView: View {
                     }) {
                         HStack(spacing: 5) {
                             Image(systemName: isSaved ? "bookmark.slash.fill" : "bookmark.fill")
-                                .font(.caption)
+                                .font(.caption2)
                             Text(isSaved ? "Unsave Preset" : "Save Preset")
                                 .font(.caption)
                                 .fontWeight(.semibold)
                         }
                         .foregroundColor(isSaved ? .white : .primary)
                         .frame(maxWidth: .infinity)
-                        .frame(height: 36)
+                        .frame(height: 28)
                         .background(isSaved ? Color.red : Color(NSColor.controlBackgroundColor))
-                        .cornerRadius(8)
+                        .cornerRadius(6)
                         .overlay(
-                            RoundedRectangle(cornerRadius: 8)
+                            RoundedRectangle(cornerRadius: 6)
                                 .stroke(isSaved ? Color.clear : Color.secondary.opacity(0.25), lineWidth: 1)
                         )
                     }
@@ -250,22 +250,22 @@ struct SettingsView: View {
                     }) {
                         HStack(spacing: 5) {
                             Image(systemName: "bolt.fill")
-                                .font(.caption)
+                                .font(.caption2)
                             Text("Apply to Wi-Fi")
                                 .font(.caption)
                                 .fontWeight(.semibold)
                         }
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
-                        .frame(height: 36)
+                        .frame(height: 28)
                         .background(Color.green)
-                        .cornerRadius(8)
+                        .cornerRadius(6)
                     }
                     .buttonStyle(.plain)
                 }
             }
         }
         .padding(16)
-        .frame(width: 360, height: 510)
+        .frame(width: 360, height: 500)
     }
 }
