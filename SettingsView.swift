@@ -152,9 +152,9 @@ struct SettingsView: View {
                     .background(Color(NSColor.controlBackgroundColor))
                     .cornerRadius(8)
                 }
-                .padding(.trailing, 2)
+                .padding(.trailing, 4)
             }
-            .frame(maxHeight: 440)
+            .frame(height: 340)
             
             Divider()
             
@@ -187,7 +187,7 @@ struct SettingsView: View {
                         withAnimation {
                             showAppliedAlert = true
                         }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
                             withAnimation {
                                 showAppliedAlert = false
                             }
@@ -228,6 +228,6 @@ struct SettingsView: View {
             }
         }
         .padding(16)
-        .frame(width: 360)
+        .frame(width: 360, height: 510)
     }
 }
