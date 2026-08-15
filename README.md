@@ -6,7 +6,8 @@ A sleek, native macOS menu bar status application built in Swift & SwiftUI to se
 
 ## Key Features
 
-- ⚡ **One-Click Mode Switching**: Instant toggle between SmartDNSProxy (`35.178.60.174`, `45.77.61.165`) and Automatic DHCP.
+- ⚡ **One-Click Mode Switching**: Instant toggle between SmartDNSProxy (Active Option 1: `46.166.189.68`, `13.125.194.42`) and Automatic DHCP.
+- ⚙️ **Smart State & Manual DNS Detection**: Accurately detects and distinguishes between Streaming Mode, Automatic (DHCP), and Manual/Custom DNS states, allowing seamless one-click switching from any network configuration.
 - 🎨 **Dynamic Action Buttons**: Clear color coding (Green for Stream, Blue for Normal/Automatic) with dynamic titles (`In Stream Mode` / `In Normal Mode` when active, bright active colors when clickable).
 - 🔄 **Automatic Real-time Status Updates**: Automatically detects and refreshes iCloud Private Relay and DNS status changes when returning from System Settings without needing manual refresh.
 - 🔒 **iCloud Private Relay Monitoring**: Automatically checks and displays iCloud Private Relay status (Active, Paused, Off).

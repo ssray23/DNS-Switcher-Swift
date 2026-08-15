@@ -17,7 +17,14 @@
 #   bash dns-switch.sh status  → Show current DNS
 # ─────────────────────────────────────────────
 
-SMART_DNS="35.178.60.174 45.77.61.165"
+# Option 1 (Active)
+SMART_DNS="46.166.189.68 13.125.194.42"
+
+# Option 2
+# SMART_DNS="23.21.43.50 82.103.129.72"
+
+# Previous IPs
+# SMART_DNS="35.178.60.174 45.77.61.165"
 
 # ANSI Colors
 GREEN="\033[0;32m"
@@ -98,7 +105,7 @@ show_status() {
             colored_dns+=$'\n'
         fi
         
-        if [ "$line" = "35.178.60.174" ] || [ "$line" = "45.77.61.165" ]; then
+        if [[ " $SMART_DNS " =~ " $line " ]]; then
             colored_dns+="${GREEN}${line}${RESET}"
         else
             colored_dns+="${line}"
@@ -130,7 +137,14 @@ show_status() {
     fi
 
     # Print streaming notes if using SmartDNSProxy
-    if [[ "$dns_now" =~ "35.178.60.174" ]] || [[ "$dns_now" =~ "45.77.61.165" ]]; then
+    local has_smart_dns=false
+    for ip in $SMART_DNS; do
+        if [[ "$dns_now" =~ "$ip" ]]; then
+            has_smart_dns=true
+            break
+        fi
+    done
+    if [ "$has_smart_dns" = true ]; then
         echo ""
         echo "💡 Reminder: It is advisable to reactivate your IP on the SmartDNSProxy My Account page"
         echo "   (https://www.smartdnsproxy.com/MyAccount) to ensure a seamless streaming experience."

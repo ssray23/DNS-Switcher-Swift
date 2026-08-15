@@ -4,6 +4,7 @@ import AppKit
 enum DNSMode {
     case stream
     case normal
+    case custom
     case unknown
 }
 
@@ -15,7 +16,14 @@ enum PrivateRelayStatus: String {
 }
 
 class DNSManager: ObservableObject {
-    static let smartDNSIPs = ["35.178.60.174", "45.77.61.165"]
+    // Option 1 (Active)
+    static let smartDNSIPs = ["46.166.189.68", "13.125.194.42"]
+    
+    // Option 2
+    // static let smartDNSIPs = ["23.21.43.50", "82.103.129.72"]
+    
+    // Previous IPs
+    // static let smartDNSIPs = ["35.178.60.174", "45.77.61.165"]
     
     @Published var wifiInterface: String = "Wi-Fi"
     @Published var currentDNS: [String] = []
@@ -67,8 +75,17 @@ class DNSManager: ObservableObject {
             let dnsServers = self?.fetchDNSServers(interface: interface) ?? []
             let relay = self?.fetchPrivateRelayStatus() ?? .off
             
-            let isStream = dnsServers.contains(where: { DNSManager.smartDNSIPs.contains($0) })
-            let mode: DNSMode = isStream ? .stream : .normal
+            let isStream = !dnsServers.isEmpty && dnsServers.allSatisfy { DNSManager.smartDNSIPs.contains($0) }
+            let isAutomatic = dnsServers.isEmpty
+            
+            let mode: DNSMode
+            if isStream {
+                mode = .stream
+            } else if isAutomatic {
+                mode = .normal
+            } else {
+                mode = .custom
+            }
             
             DispatchQueue.main.async {
                 self?.wifiInterface = interface
@@ -201,7 +218,7 @@ class DNSManager: ObservableObject {
             if let output = String(data: data, encoding: .utf8) {
                 let lines = output.components(separatedBy: .newlines)
                     .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-                    .filter { !$0.isEmpty }
+                    .filter { !$0.isEmpty && !$0.contains("aren't any DNS Servers set") }
                 return lines
             }
         } catch {}

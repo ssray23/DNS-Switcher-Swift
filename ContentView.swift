@@ -42,14 +42,7 @@ struct ContentView: View {
                     
                     Spacer()
                     
-                    Text(dnsManager.currentMode == .stream ? "⚡ STREAMING" : "🌐 AUTOMATIC")
-                        .font(.caption)
-                        .fontWeight(.bold)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(dnsManager.currentMode == .stream ? Color.green.opacity(0.2) : Color.blue.opacity(0.2))
-                        .foregroundColor(dnsManager.currentMode == .stream ? .green : .blue)
-                        .cornerRadius(6)
+                    modeBadgeView
                 }
                 
                 // DNS IPs
@@ -58,7 +51,7 @@ struct ContentView: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
                     
-                    if dnsManager.currentDNS.isEmpty || dnsManager.currentDNS == ["There aren't any DNS Servers set on Wi-Fi."] {
+                    if dnsManager.currentDNS.isEmpty {
                         Text("Automatic (DHCP / Router)")
                             .font(.system(.body, design: .monospaced))
                             .foregroundColor(.secondary)
@@ -242,6 +235,31 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             dnsManager.refresh()
         }
+    }
+    
+    @ViewBuilder
+    private var modeBadgeView: some View {
+        let (text, color): (String, Color) = {
+            switch dnsManager.currentMode {
+            case .stream:
+                return ("⚡ STREAMING", .green)
+            case .normal:
+                return ("🌐 AUTOMATIC", .blue)
+            case .custom:
+                return ("⚙️ MANUAL DNS", .orange)
+            case .unknown:
+                return ("❓ UNKNOWN", .secondary)
+            }
+        }()
+        
+        Text(text)
+            .font(.caption)
+            .fontWeight(.bold)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(color.opacity(0.2))
+            .foregroundColor(color)
+            .cornerRadius(6)
     }
     
     private func relayColor(_ status: PrivateRelayStatus) -> Color {

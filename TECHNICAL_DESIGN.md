@@ -53,7 +53,7 @@ The application follows an Event-Driven MVVM Architecture using SwiftUI and Comb
 - **Published Properties**:
   - `wifiInterface`: Auto-detected active Wi-Fi interface (e.g., `Wi-Fi`).
   - `currentDNS`: Active DNS IP server addresses.
-  - `currentMode`: Active mode (`.stream` vs `.normal`).
+  - `currentMode`: Active mode (`.stream`, `.normal`, `.custom`, or `.unknown`).
   - `relayStatus`: Parsed Private Relay state (`.active`, `.paused`, `.off`).
   - `isUpdating`: Async lock flag preventing duplicate executions.
   - `lastMessage`: Status and error feedback messages.
@@ -61,8 +61,11 @@ The application follows an Event-Driven MVVM Architecture using SwiftUI and Comb
 #### Key Workflows:
 1. **Network Interface Discovery**:
    Runs `/usr/sbin/networksetup -listallnetworkservices` to find the active Wi-Fi/Airport service.
-2. **DNS Retrieval**:
+2. **DNS Retrieval & State Classification**:
    Runs `/usr/sbin/networksetup -getdnsservers <interface>` to extract current DNS server configurations.
+   - If current servers match active `smartDNSIPs` (`46.166.189.68`, `13.125.194.42`), mode is `.stream`.
+   - If empty (or DHCP unset), mode is `.normal` (`Automatic (DHCP / Router)`).
+   - If manual DNS IPs are present that do not match active SmartDNS IPs, mode is `.custom` (`MANUAL DNS`), ensuring user can switch directly to either Stream or Normal mode.
 3. **iCloud Private Relay Parsing**:
    Reads macOS `com.apple.networkserviceproxy` defaults export. Evaluates the nested `NSPServiceStatusManagerInfo` binary property list to check `PrivacyProxyServiceStatus`:
    - `1` = Active (or Paused if specific network status != 1)
@@ -77,10 +80,11 @@ The application follows an Event-Driven MVVM Architecture using SwiftUI and Comb
 ### 3.3 `ContentView.swift` (UI & User Experience)
 - **Role**: Modern SwiftUI View rendered inside the menu bar popover.
 - **Features**:
-  - **Status Card**: Visual badges displaying the current active interface, active DNS IPs, and color-coded Private Relay state badge.
+  - **Status Card**: Visual badges (`modeBadgeView`) displaying current active interface, active DNS IPs, mode status (`⚡ STREAMING`, `🌐 AUTOMATIC`, or `⚙️ MANUAL DNS`), and color-coded Private Relay state badge.
   - **Dynamic Mode Action Buttons**:
-    - **Stream Mode Button**: Displays active bright green (`Color.green`) with `"Switch to Stream Mode (SmartDNS)"` when in Normal Mode; displays dimmed green (`Color.green.opacity(0.55)`) with `"In Stream Mode"` when disabled in Stream Mode.
-    - **Normal Mode Button**: Displays active bright macOS blue (`Color.blue`) with `"Switch to Normal Mode (Automatic)"` when in Stream Mode; displays dimmed blue (`Color.blue.opacity(0.5)`) with `"In Normal Mode"` when disabled in Normal Mode.
+    - **Stream Mode Button**: Displays active bright green (`Color.green`) with `"Switch to Stream Mode (SmartDNS)"` when not in Stream Mode; displays dimmed green (`Color.green.opacity(0.55)`) with `"In Stream Mode"` when disabled in Stream Mode.
+    - **Normal Mode Button**: Displays active bright macOS blue (`Color.blue`) with `"Switch to Normal Mode (Automatic)"` when not in Normal Mode; displays dimmed blue (`Color.blue.opacity(0.5)`) with `"In Normal Mode"` when disabled in Normal Mode.
+    - **Manual State Handling**: When in `.custom` (manual) mode, both buttons remain enabled so the user can easily transition to either Stream or Automatic mode with a single click.
   - **Manage... Button**: Styled with a native macOS bordered button style (`.buttonStyle(.bordered)` with `.tint(.blue)`), giving it a clear interactive border and hover/pressed states.
   - **Multiline Note Box**: Uses `.lineLimit(nil)` and `.fixedSize(horizontal: false, vertical: true)` to ensure instructions and Safari streaming notes wrap dynamically without truncation.
   - **Quick Utility Toolbar**: One-click DNS cache flush (`dscacheutil -flushcache && killall -HUP mDNSResponder`), direct preferences link, and SmartDNSProxy web portal launcher.
