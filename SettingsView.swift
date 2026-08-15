@@ -220,20 +220,20 @@ struct SettingsView: View {
                         }
                     }) {
                         HStack(spacing: 5) {
-                            Image(systemName: isSaved ? "bookmark.slash" : "bookmark.fill")
+                            Image(systemName: isSaved ? "bookmark.slash.fill" : "bookmark.fill")
                                 .font(.caption)
                             Text(isSaved ? "Unsave Preset" : "Save Preset")
                                 .font(.caption)
-                                .fontWeight(.medium)
+                                .fontWeight(.semibold)
                         }
-                        .foregroundColor(isSaved ? .red : .primary)
+                        .foregroundColor(isSaved ? .white : .primary)
                         .frame(maxWidth: .infinity)
                         .frame(height: 36)
-                        .background(Color(NSColor.controlBackgroundColor))
+                        .background(isSaved ? Color.red : Color(NSColor.controlBackgroundColor))
                         .cornerRadius(8)
                         .overlay(
                             RoundedRectangle(cornerRadius: 8)
-                                .stroke(isSaved ? Color.red.opacity(0.35) : Color.secondary.opacity(0.25), lineWidth: 1)
+                                .stroke(isSaved ? Color.clear : Color.secondary.opacity(0.25), lineWidth: 1)
                         )
                     }
                     .buttonStyle(.plain)
