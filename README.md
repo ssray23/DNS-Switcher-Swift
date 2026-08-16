@@ -1,22 +1,34 @@
 # DNS Switcher (Swift)
 
-A sleek, native macOS menu bar status application built in Swift & SwiftUI to seamlessly switch Wi-Fi DNS server configurations between **Stream Mode** (SmartDNSProxy) and **Normal Mode** (Automatic DHCP).
+A sleek, native macOS menu bar status application built in Swift & SwiftUI to seamlessly switch Wi-Fi DNS server configurations between **Fast Browsing Mode** (Cloudflare, Google, Quad9), **Stream Mode** (SmartDNSProxy), and **Normal Mode** (Automatic DHCP).
 
 ![DNS Switcher App Icon](AppIcon.png)
 
 ## Key Features
 
-- ⚡ **One-Click Mode Switching**: Instant toggle between SmartDNSProxy servers and Automatic DHCP.
+- 🚀 **Fast Browsing Mode (High-Speed & Secure Presets)**:
+  - ⚡ **Cloudflare** (`1.1.1.1` / `1.0.0.1`): Consistently ranks #1 in global speed tests with a strong focus on user privacy.
+  - 🌐 **Google** (`8.8.8.8` / `8.8.4.4`): Highly stable and fast, though it logs query data for analytics.
+  - 🛡️ **Quad9** (`9.9.9.9` / `149.112.112.112`): Balances fast response times with automated malware blocking.
+- ⚡ **Stream Mode (SmartDNSProxy)**: Instant unblocking of global streaming services (Sony LIV, JioCinema, Hotstar, etc.).
+- 🌐 **Normal Mode (Automatic DHCP)**: Reset to default router/DHCP network routing.
 - 🌍 **Multi-City & European Server Settings**: Dedicated Settings page allowing selection of Primary and Secondary DNS servers across London, major European cities (Frankfurt, Paris, Amsterdam, Dublin, Madrid, Milan, Zurich, Copenhagen, Stockholm), North America, and Asia.
 - ⚡ **Curated 2-Server Presets**: Quick one-click presets (e.g. `🇬🇧 London + 🇩🇪 Frankfurt`, `🇬🇧 London + 🇫🇷 Paris`, `🇳🇱 Amsterdam + 🇰🇷 Seoul`, `🇺🇸 US + 🇩🇰 Copenhagen`).
-- 🏷️ **City-Aware DNS Badging**: Displays corresponding city and country flag badges next to active DNS IPs in the status view.
-- ⚙️ **Smart State & Manual DNS Detection**: Accurately detects and distinguishes between Streaming Mode, Automatic (DHCP), and Manual/Custom DNS states, allowing seamless one-click switching from any network configuration.
-- 🎨 **Dynamic Action Buttons**: Clear color coding (Green for Stream, Blue for Normal/Automatic) with dynamic titles (`In Stream Mode` / `In Normal Mode` when active, bright active colors when clickable).
+- 🏷️ **Provider & City-Aware DNS Badging**: Displays corresponding provider badges (Cloudflare ⚡, Google 🌐, Quad9 🛡️) and SmartDNS city/country flag badges next to active DNS IPs.
+- ⚙️ **Smart State & Manual DNS Detection**: Accurately detects and distinguishes between Fast Browsing, Streaming Mode, Automatic (DHCP), and Manual/Custom DNS states.
+- 🎨 **Dynamic Action Buttons**: Clear color coding (Purple for Fast Browsing, Green for Stream, Blue for Normal/Automatic) with dynamic titles and quick-selector pills.
 - 🔄 **Automatic Real-time Status Updates**: Automatically detects and refreshes iCloud Private Relay and DNS status changes when returning from System Settings without needing manual refresh.
 - 🔒 **iCloud Private Relay Monitoring**: Automatically checks and displays iCloud Private Relay status (Active, Paused, Off).
 - 🧹 **DNS Cache Flushing**: One-click flush for macOS `dscacheutil` and `mDNSResponder`.
 - ⚙️ **Direct Preferences Link**: Interactive `Manage...` button to open macOS Internet Privacy settings for Private Relay toggles.
 - 🎨 **Native macOS Menu Bar App**: Runs unobtrusively in the menu bar with dark/light mode support.
+
+---
+
+## Understanding DNS
+
+New to networking or want to learn how DNS works in simple terms? Read our beginner-friendly guide:
+📖 **[How DNS Works — A Beginner's Guide](HOW_DNS_WORKS.md)**
 
 ---
 

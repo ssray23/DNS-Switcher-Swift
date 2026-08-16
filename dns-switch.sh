@@ -20,14 +20,14 @@
 # Amsterdam + Seoul (Active)
 SMART_DNS="46.166.189.68 13.125.194.42"
 
-# London + Frankfurt
-# SMART_DNS="35.178.60.174 54.93.173.153"
-
-# US East + Copenhagen
-# SMART_DNS="23.21.43.50 82.103.129.72"
+# Fast Browsing DNS Presets
+CLOUDFLARE_DNS="1.1.1.1 1.0.0.1"
+GOOGLE_DNS="8.8.8.8 8.8.4.4"
+QUAD9_DNS="9.9.9.9 149.112.112.112"
 
 # ANSI Colors
 GREEN="\033[0;32m"
+PURPLE="\033[0;35m"
 RED="\033[0;31m"
 YELLOW="\033[0;33m"
 RESET="\033[0m"
@@ -106,7 +106,13 @@ show_status() {
         fi
         
         if [[ " $SMART_DNS " =~ " $line " ]]; then
-            colored_dns+="${GREEN}${line}${RESET}"
+            colored_dns+="${GREEN}${line}${RESET} [SmartDNS]"
+        elif [[ " $CLOUDFLARE_DNS " =~ " $line " ]]; then
+            colored_dns+="${PURPLE}${line}${RESET} [Cloudflare ⚡]"
+        elif [[ " $GOOGLE_DNS " =~ " $line " ]]; then
+            colored_dns+="${PURPLE}${line}${RESET} [Google 🌐]"
+        elif [[ " $QUAD9_DNS " =~ " $line " ]]; then
+            colored_dns+="${PURPLE}${line}${RESET} [Quad9 🛡️]"
         else
             colored_dns+="${line}"
         fi
@@ -206,6 +212,26 @@ case "$1" in
         fi
         show_status "stream"
         ;;
+    fast)
+        PROVIDER="${2:-cloudflare}"
+        TARGET_DNS="$CLOUDFLARE_DNS"
+        PROVIDER_NAME="Cloudflare (1.1.1.1 / 1.0.0.1)"
+        
+        if [ "$PROVIDER" = "google" ]; then
+            TARGET_DNS="$GOOGLE_DNS"
+            PROVIDER_NAME="Google (8.8.8.8 / 8.8.4.4)"
+        elif [ "$PROVIDER" = "quad9" ]; then
+            TARGET_DNS="$QUAD9_DNS"
+            PROVIDER_NAME="Quad9 (9.9.9.9 / 149.112.112.112)"
+        fi
+        
+        echo ""
+        echo "Switching to Fast Browsing mode ($PROVIDER_NAME)..."
+        networksetup -setdnsservers "$WIFI_INTERFACE" $TARGET_DNS
+        flush_dns
+        echo "  Set to: $TARGET_DNS"
+        show_status "fast"
+        ;;
     normal)
         echo ""
         echo "Switching to Automatic DNS (router decides)..."
@@ -234,10 +260,11 @@ case "$1" in
         ;;
     *)
         echo ""
-        echo "Usage: bash dns-switch.sh [stream|normal|status]"
+        echo "Usage: bash dns-switch.sh [stream|fast|normal|status]"
         echo ""
         echo "Modes:"
         echo "  stream  → SmartDNSProxy   ($SMART_DNS)"
+        echo "  fast    → Fast Browsing   ([cloudflare|google|quad9] default: Cloudflare 1.1.1.1)"
         echo "  normal  → Automatic       (blank — router hands DNS via DHCP)"
         echo "  status  → Show current DNS"
         echo ""

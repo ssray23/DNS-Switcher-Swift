@@ -3,6 +3,7 @@ import AppKit
 
 enum DNSMode {
     case stream
+    case fastBrowsing
     case normal
     case custom
     case unknown
@@ -19,6 +20,7 @@ class DNSManager: ObservableObject {
     private static let primaryServerKey = "DNSManager_PrimaryServerId"
     private static let secondaryServerKey = "DNSManager_SecondaryServerId"
     private static let presetsKey = "DNSManager_PresetsKey_v2"
+    private static let fastPresetKey = "DNSManager_SelectedFastPresetId"
     
     @Published var primaryServer: SmartDNSServer {
         didSet {
@@ -33,6 +35,12 @@ class DNSManager: ObservableObject {
     }
     
     @Published var presets: [ServerPairPreset] = []
+    
+    @Published var selectedFastPreset: FastDNSPreset {
+        didSet {
+            UserDefaults.standard.set(selectedFastPreset.id, forKey: DNSManager.fastPresetKey)
+        }
+    }
     
     var activeSmartDNSIPs: [String] {
         if primaryServer.ip == secondaryServer.ip {
@@ -53,9 +61,11 @@ class DNSManager: ObservableObject {
     init() {
         let primaryId = UserDefaults.standard.string(forKey: DNSManager.primaryServerKey) ?? "nl_amsterdam"
         let secondaryId = UserDefaults.standard.string(forKey: DNSManager.secondaryServerKey) ?? "kr_seoul"
+        let fastId = UserDefaults.standard.string(forKey: DNSManager.fastPresetKey) ?? "cloudflare"
         
         self.primaryServer = SmartDNSCatalog.findServer(byId: primaryId) ?? SmartDNSCatalog.amsterdam
         self.secondaryServer = SmartDNSCatalog.findServer(byId: secondaryId) ?? SmartDNSCatalog.seoul
+        self.selectedFastPreset = FastDNSCatalog.findPreset(byId: fastId) ?? FastDNSCatalog.cloudflare
         
         if let data = UserDefaults.standard.data(forKey: DNSManager.presetsKey),
            let saved = try? JSONDecoder().decode([ServerPairPreset].self, from: data),
@@ -115,8 +125,17 @@ class DNSManager: ObservableObject {
         }
     }
     
+    func applyFastPreset(_ preset: FastDNSPreset, completion: ((Bool) -> Void)? = nil) {
+        self.selectedFastPreset = preset
+        switchMode(to: .fastBrowsing, fastPreset: preset, completion: completion)
+    }
+    
     func serverForIP(_ ip: String) -> SmartDNSServer? {
         SmartDNSCatalog.findServer(byIP: ip)
+    }
+    
+    func fastPresetForIP(_ ip: String) -> FastDNSPreset? {
+        FastDNSCatalog.provider(forIP: ip)
     }
     
     func startAutoRefresh() {
@@ -152,15 +171,20 @@ class DNSManager: ObservableObject {
             let relay = self.fetchPrivateRelayStatus()
             
             let activeIPs = self.activeSmartDNSIPs
+            let matchingFastPreset = FastDNSCatalog.findPreset(matchingIPs: dnsServers)
+            
             let isStream = !dnsServers.isEmpty && (
                 dnsServers.allSatisfy { activeIPs.contains($0) } ||
                 dnsServers.allSatisfy { SmartDNSCatalog.findServer(byIP: $0) != nil }
             )
+            let isFast = !dnsServers.isEmpty && matchingFastPreset != nil
             let isAutomatic = dnsServers.isEmpty
             
             let mode: DNSMode
             if isStream {
                 mode = .stream
+            } else if isFast {
+                mode = .fastBrowsing
             } else if isAutomatic {
                 mode = .normal
             } else {
@@ -172,21 +196,35 @@ class DNSManager: ObservableObject {
                 self.currentDNS = dnsServers
                 self.currentMode = mode
                 self.relayStatus = relay
+                if let fast = matchingFastPreset {
+                    self.selectedFastPreset = fast
+                }
             }
         }
     }
     
-    func switchMode(to targetMode: DNSMode, completion: ((Bool) -> Void)? = nil) {
+    func switchMode(to targetMode: DNSMode, fastPreset: FastDNSPreset? = nil, completion: ((Bool) -> Void)? = nil) {
+        if let preset = fastPreset {
+            self.selectedFastPreset = preset
+        }
+        
         isUpdating = true
         lastMessage = "Applying DNS changes..."
+        
+        let presetToApply = fastPreset ?? self.selectedFastPreset
         
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self = self else { return }
             let interface = self.wifiInterface
             let dnsArgs: String
-            if targetMode == .stream {
+            switch targetMode {
+            case .stream:
                 dnsArgs = self.activeSmartDNSIPs.joined(separator: " ")
-            } else {
+            case .fastBrowsing:
+                dnsArgs = presetToApply.ips.joined(separator: " ")
+            case .normal:
+                dnsArgs = "Empty"
+            case .custom, .unknown:
                 dnsArgs = "Empty"
             }
             

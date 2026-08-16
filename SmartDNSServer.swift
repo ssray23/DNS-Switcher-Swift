@@ -41,6 +41,87 @@ public struct ServerPairPreset: Identifiable, Hashable, Codable, Equatable {
     }
 }
 
+public struct FastDNSPreset: Identifiable, Hashable, Codable, Equatable {
+    public let id: String
+    public let name: String
+    public let icon: String
+    public let systemIcon: String
+    public let primaryIP: String
+    public let secondaryIP: String
+    public let description: String
+    
+    public var ips: [String] {
+        [primaryIP, secondaryIP]
+    }
+    
+    public var formattedIPs: String {
+        "\(primaryIP) / \(secondaryIP)"
+    }
+    
+    public init(id: String, name: String, icon: String, systemIcon: String, primaryIP: String, secondaryIP: String, description: String) {
+        self.id = id
+        self.name = name
+        self.icon = icon
+        self.systemIcon = systemIcon
+        self.primaryIP = primaryIP
+        self.secondaryIP = secondaryIP
+        self.description = description
+    }
+}
+
+public struct FastDNSCatalog {
+    public static let cloudflare = FastDNSPreset(
+        id: "cloudflare",
+        name: "Cloudflare",
+        icon: "⚡",
+        systemIcon: "bolt.fill",
+        primaryIP: "1.1.1.1",
+        secondaryIP: "1.0.0.1",
+        description: "Consistently ranks #1 in global speed tests with a strong focus on user privacy."
+    )
+    
+    public static let google = FastDNSPreset(
+        id: "google",
+        name: "Google",
+        icon: "🌐",
+        systemIcon: "globe",
+        primaryIP: "8.8.8.8",
+        secondaryIP: "8.8.4.4",
+        description: "Highly stable and fast, though it logs query data for analytics."
+    )
+    
+    public static let quad9 = FastDNSPreset(
+        id: "quad9",
+        name: "Quad9",
+        icon: "🛡️",
+        systemIcon: "shield.fill",
+        primaryIP: "9.9.9.9",
+        secondaryIP: "149.112.112.112",
+        description: "Balances fast response times with automated malware blocking."
+    )
+    
+    public static let allPresets: [FastDNSPreset] = [
+        cloudflare,
+        google,
+        quad9
+    ]
+    
+    public static func findPreset(byId id: String) -> FastDNSPreset? {
+        allPresets.first(where: { $0.id == id })
+    }
+    
+    public static func findPreset(matchingIPs ips: [String]) -> FastDNSPreset? {
+        guard !ips.isEmpty else { return nil }
+        return allPresets.first { preset in
+            ips.allSatisfy { preset.ips.contains($0) }
+        }
+    }
+    
+    public static func provider(forIP ip: String) -> FastDNSPreset? {
+        allPresets.first { $0.ips.contains(ip) }
+    }
+}
+
 public struct SmartDNSCatalog {
     // European & UK Servers
     public static let london = SmartDNSServer(id: "uk_london", city: "London", country: "United Kingdom", flag: "🇬🇧", ip: "35.178.60.174", region: .ukAndEurope)

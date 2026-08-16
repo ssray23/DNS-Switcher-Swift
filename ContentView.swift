@@ -95,7 +95,15 @@ struct ContentView: View {
                                     .font(.system(.body, design: .monospaced))
                                     .fontWeight(.medium)
                                 
-                                if let server = dnsManager.serverForIP(ip) {
+                                if let fastPreset = dnsManager.fastPresetForIP(ip) {
+                                    Text("\(fastPreset.icon) \(fastPreset.name)")
+                                        .font(.caption2)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(Color.purple.opacity(0.2))
+                                        .foregroundColor(.purple)
+                                        .cornerRadius(4)
+                                } else if let server = dnsManager.serverForIP(ip) {
                                     Text("\(server.flag) \(server.city)")
                                         .font(.caption2)
                                         .padding(.horizontal, 6)
@@ -154,14 +162,22 @@ struct ContentView: View {
                 Text("Target:")
                     .font(.caption2)
                     .foregroundColor(.secondary)
-                Text("\(dnsManager.primaryServer.flag) \(dnsManager.primaryServer.city) + \(dnsManager.secondaryServer.flag) \(dnsManager.secondaryServer.city)")
-                    .font(.caption2)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.primary)
+                
+                if dnsManager.currentMode == .fastBrowsing {
+                    Text("\(dnsManager.selectedFastPreset.icon) \(dnsManager.selectedFastPreset.name) (\(dnsManager.selectedFastPreset.formattedIPs))")
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.primary)
+                } else {
+                    Text("\(dnsManager.primaryServer.flag) \(dnsManager.primaryServer.city) + \(dnsManager.secondaryServer.flag) \(dnsManager.secondaryServer.city)")
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.primary)
+                }
                 
                 Spacer()
                 
-                Button("Change Servers...") {
+                Button("Configure...") {
                     showingSettings = true
                 }
                 .font(.caption2)
@@ -170,55 +186,141 @@ struct ContentView: View {
             .padding(.horizontal, 2)
             
             // Mode Control Buttons
-            VStack(spacing: 8) {
-                // Stream Mode Button
+            VStack(spacing: 7) {
+                // 1. Fast Browsing Mode Button
+                Button(action: {
+                    dnsManager.switchMode(to: .fastBrowsing)
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "bolt.fill")
+                            .font(.system(size: 12, weight: .semibold))
+                        Text(dnsManager.currentMode == .fastBrowsing ? "In Fast Browsing (\(dnsManager.selectedFastPreset.name))" : "Switch to Fast Browsing (\(dnsManager.selectedFastPreset.name))")
+                            .font(.system(size: 12.5, weight: .semibold))
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 30)
+                    .background(
+                        dnsManager.currentMode == .fastBrowsing 
+                            ? Color.purple.opacity(0.55) 
+                            : Color.purple
+                    )
+                    .cornerRadius(7)
+                }
+                .buttonStyle(.plain)
+                .disabled(dnsManager.isUpdating || (dnsManager.currentMode == .fastBrowsing && dnsManager.currentDNS == dnsManager.selectedFastPreset.ips))
+                
+                // 2. Fast DNS Quick Switch Pills
+                HStack(spacing: 5) {
+                    ForEach(FastDNSCatalog.allPresets) { preset in
+                        let isSelectedPreset = (dnsManager.selectedFastPreset.id == preset.id)
+                        let isCurrentlyActive = (dnsManager.currentMode == .fastBrowsing && isSelectedPreset)
+                        
+                        Button(action: {
+                            dnsManager.applyFastPreset(preset)
+                        }) {
+                            HStack(spacing: 4) {
+                                Text(preset.icon)
+                                    .font(.system(size: 11))
+                                Text(preset.name)
+                                    .font(.system(size: 11.5, weight: isSelectedPreset ? .bold : .medium))
+                            }
+                            .padding(.horizontal, 6)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 25)
+                            .background(
+                                isCurrentlyActive 
+                                    ? Color.purple.opacity(0.25)
+                                    : (isSelectedPreset ? Color.purple.opacity(0.12) : Color(NSColor.controlBackgroundColor))
+                            )
+                            .foregroundColor(isSelectedPreset ? .purple : .primary)
+                            .cornerRadius(6)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .stroke(isSelectedPreset ? Color.purple.opacity(0.5) : Color.secondary.opacity(0.2), lineWidth: 1)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .help("\(preset.name) (\(preset.formattedIPs)): \(preset.description)")
+                        .disabled(dnsManager.isUpdating)
+                    }
+                }
+                
+                // 3. Stream Mode Button
                 Button(action: {
                     dnsManager.switchMode(to: .stream)
                 }) {
-                    HStack(spacing: 8) {
+                    HStack(spacing: 6) {
                         Image(systemName: "play.tv.fill")
+                            .font(.system(size: 12, weight: .semibold))
                         Text(dnsManager.currentMode == .stream ? "In Stream Mode" : "Switch to Stream Mode (SmartDNS)")
-                            .fontWeight(.semibold)
+                            .font(.system(size: 12.5, weight: .semibold))
                     }
-                    .font(.body)
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 9)
+                    .frame(height: 30)
                     .background(
                         dnsManager.currentMode == .stream 
                             ? Color.green.opacity(0.55) 
                             : Color.green
                     )
-                    .cornerRadius(8)
+                    .cornerRadius(7)
                 }
                 .buttonStyle(.plain)
                 .disabled(dnsManager.isUpdating || dnsManager.currentMode == .stream)
                 
-                // Normal Mode Button
+                // 4. Normal Mode Button
                 Button(action: {
                     dnsManager.switchMode(to: .normal)
                 }) {
-                    HStack(spacing: 8) {
+                    HStack(spacing: 6) {
                         Image(systemName: "globe")
+                            .font(.system(size: 12, weight: .semibold))
                         Text(dnsManager.currentMode == .normal ? "In Normal Mode" : "Switch to Normal Mode (Automatic)")
-                            .fontWeight(.semibold)
+                            .font(.system(size: 12.5, weight: .semibold))
                     }
-                    .font(.body)
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 9)
+                    .frame(height: 30)
                     .background(
                         dnsManager.currentMode == .normal 
-                            ? Color.blue.opacity(0.5) 
+                            ? Color.blue.opacity(0.55) 
                             : Color.blue
                     )
-                    .cornerRadius(8)
+                    .cornerRadius(7)
                 }
                 .buttonStyle(.plain)
                 .disabled(dnsManager.isUpdating || dnsManager.currentMode == .normal)
             }
             
-            if dnsManager.currentMode == .stream {
+            // Mode-specific Context Notes
+            if dnsManager.currentMode == .fastBrowsing {
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack(alignment: .top, spacing: 6) {
+                        Text(dnsManager.selectedFastPreset.icon)
+                            .font(.caption)
+                        Text("\(dnsManager.selectedFastPreset.name) DNS Active")
+                            .font(.caption)
+                            .fontWeight(.bold)
+                            .foregroundColor(.purple)
+                    }
+                    
+                    Text(dnsManager.selectedFastPreset.description)
+                        .font(.caption)
+                        .foregroundColor(.primary)
+                        .lineLimit(nil)
+                        .fixedSize(horizontal: false, vertical: true)
+                    
+                    Text("• Primary: \(dnsManager.selectedFastPreset.primaryIP)  |  Secondary: \(dnsManager.selectedFastPreset.secondaryIP)")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .fontDesign(.monospaced)
+                }
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.purple.opacity(0.1))
+                .cornerRadius(8)
+            } else if dnsManager.currentMode == .stream {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(alignment: .top, spacing: 6) {
                         Image(systemName: "info.circle.fill")
@@ -295,6 +397,8 @@ struct ContentView: View {
             switch dnsManager.currentMode {
             case .stream:
                 return ("⚡ STREAMING", .green)
+            case .fastBrowsing:
+                return ("🚀 FAST BROWSING", .purple)
             case .normal:
                 return ("🌐 AUTOMATIC", .blue)
             case .custom:
