@@ -63,11 +63,12 @@ struct SettingsView: View {
             .padding(.bottom, 2)
             
             // Tab Selector
-            Picker("Mode Tab", selection: $selectedTab) {
+            Picker("", selection: $selectedTab) {
                 Text("⚡ Fast Browsing").tag(SettingsTab.fastBrowsing)
                 Text("📺 SmartDNS (Stream)").tag(SettingsTab.smartDNS)
             }
             .pickerStyle(.segmented)
+            .labelsHidden()
             
             Divider()
             
