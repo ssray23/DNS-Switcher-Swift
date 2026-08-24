@@ -156,7 +156,7 @@ class DNSManager: ObservableObject {
         serverLatencies[server.ip]
     }
     
-    func runBenchmark(completion: (() -> Void)? = nil) {
+    func runFastDNSBenchmark(completion: (() -> Void)? = nil) {
         guard !isBenchmarking else { return }
         isBenchmarking = true
         
@@ -164,14 +164,34 @@ class DNSManager: ObservableObject {
         for preset in FastDNSCatalog.allPresets {
             allIPs.formUnion(preset.ips)
         }
+        
+        Task {
+            let latencies = await DNSBenchmarkEngine.shared.probeAll(ips: Array(allIPs), timeoutSeconds: 1.5)
+            await MainActor.run {
+                for (ip, latency) in latencies {
+                    self.serverLatencies[ip] = latency
+                }
+                self.isBenchmarking = false
+                completion?()
+            }
+        }
+    }
+    
+    func runSmartDNSBenchmark(domain: String, completion: (() -> Void)? = nil) {
+        guard !isBenchmarking else { return }
+        isBenchmarking = true
+        
+        var allIPs = Set<String>()
         for server in SmartDNSCatalog.allServers {
             allIPs.insert(server.ip)
         }
         
         Task {
-            let latencies = await DNSBenchmarkEngine.shared.probeAll(ips: Array(allIPs), timeoutSeconds: 1.5)
+            let latencies = await DNSBenchmarkEngine.shared.probeAllStreamingRoutes(ips: Array(allIPs), targetDomain: domain, timeoutSeconds: 3.0)
             await MainActor.run {
-                self.serverLatencies = latencies
+                for (ip, latency) in latencies {
+                    self.serverLatencies[ip] = latency
+                }
                 self.isBenchmarking = false
                 completion?()
             }

@@ -62,6 +62,9 @@ struct SettingsView: View {
     @State private var selectedSecondary: SmartDNSServer
     @State private var selectedFast: FastDNSPreset
     @State private var showAppliedAlert: Bool = false
+    @State private var targetDomain: String = "hotstar.com"
+    
+    let targetDomains = ["hotstar.com", "sonyliv.com"]
     
     init(dnsManager: DNSManager, onBack: @escaping () -> Void) {
         self.dnsManager = dnsManager
@@ -119,7 +122,11 @@ struct SettingsView: View {
             // Benchmark Action Bar
             HStack {
                 Button(action: {
-                    dnsManager.runBenchmark()
+                    if selectedTab == .fastBrowsing {
+                        dnsManager.runFastDNSBenchmark()
+                    } else {
+                        dnsManager.runSmartDNSBenchmark(domain: targetDomain)
+                    }
                 }) {
                     HStack(spacing: 4) {
                         if dnsManager.isBenchmarking {
@@ -192,7 +199,11 @@ struct SettingsView: View {
         .frame(width: 360, height: 530)
         .onAppear {
             if dnsManager.serverLatencies.isEmpty {
-                dnsManager.runBenchmark()
+                if selectedTab == .fastBrowsing {
+                    dnsManager.runFastDNSBenchmark()
+                } else {
+                    dnsManager.runSmartDNSBenchmark(domain: targetDomain)
+                }
             }
         }
     }
@@ -330,6 +341,30 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 10) {
             ScrollView(.vertical, showsIndicators: true) {
                 VStack(alignment: .leading, spacing: 14) {
+                    
+                    // Streaming Route Benchmark Target
+                    HStack {
+                        Text("Simulate Video Route To:")
+                            .font(.caption)
+                            .fontWeight(.bold)
+                            .foregroundColor(.secondary)
+                        
+                        Picker("", selection: $targetDomain) {
+                            ForEach(targetDomains, id: \.self) { domain in
+                                Text(domain).tag(domain)
+                            }
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                        .frame(width: 130)
+                        .onChange(of: targetDomain) { _ in
+                            // Auto re-run benchmark when target changes
+                            dnsManager.runSmartDNSBenchmark(domain: targetDomain)
+                        }
+                    }
+                    
+                    Divider()
+                    
                     // Quick European & Popular Presets
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
