@@ -26,7 +26,7 @@ The application follows an Event-Driven MVVM Architecture using SwiftUI and Comb
 │                     ContentView                           │
 │     • Mode Toggle Controls   • Private Relay Badge        │
 │     • Fast DNS Quick Pills   • Active DNS IP Badges       │
-│     • Status Context Notes   • Responsive Multiline Text  │
+│     • Status Context Notes   • Latency Badges (ms)        │
 └─────────────────────────────┬─────────────────────────────┘
                               │ @ObservedObject / @Published
                               ▼
@@ -35,15 +35,17 @@ The application follows an Event-Driven MVVM Architecture using SwiftUI and Comb
 │     • Interface Detection    • Fast Preset Manager        │
 │     • Private Relay Parser   • Privileged Shell Exec      │
 │     • State Classification   • Cache Flush Dispatch       │
-└─────────────────────────────┬─────────────────────────────┘
-                              │
-          ┌───────────────────┴───────────────────┐
-          ▼                                       ▼
-┌──────────────────┐                    ┌───────────────────┐
-│ networksetup CLI │                    │  AppleScript      │
-│ dscacheutil      │                    │  NSAppleScript    │
-│ mDNSResponder    │                    │ (Admin Elevation) │
-└──────────────────┘                    └───────────────────┘
+│     • Latency Benchmarking   • Auto-Select Fastest        │
+└────────────┬────────────────────────────┬─────────────────┘
+             │                            │
+  ┌──────────┴──────────┐     ┌───────────┴──────────────┐
+  ▼                     ▼     ▼                          ▼
+┌──────────────────┐  ┌───────────────────┐  ┌───────────────────────┐
+│ networksetup CLI │  │  AppleScript      │  │ DNSBenchmarkEngine    │
+│ dscacheutil      │  │  NSAppleScript    │  │ • UDP Port 53 Probes  │
+│ mDNSResponder    │  │ (Admin Elevation) │  │ • Concurrent TaskGroup│
+└──────────────────┘  └───────────────────┘  │ • ms Latency Timing   │
+                                             └───────────────────────┘
 ```
 
 ---
@@ -78,6 +80,8 @@ The application follows an Event-Driven MVVM Architecture using SwiftUI and Comb
   - `relayStatus`: Parsed Private Relay state (`.active`, `.paused`, `.off`).
   - `isUpdating`: Async lock flag preventing duplicate executions.
   - `lastMessage`: Status and error feedback messages.
+  - `serverLatencies`: Dictionary mapping server IP addresses to measured round-trip latency in milliseconds (`[String: Int]`).
+  - `isBenchmarking`: Boolean flag indicating whether a benchmark run is in progress (drives UI loading indicators).
 
 #### Key Workflows:
 1. **Network Interface Discovery**:
@@ -98,17 +102,31 @@ The application follows an Event-Driven MVVM Architecture using SwiftUI and Comb
    - **App Activation Observer**: Listens for `NSApplication.didBecomeActiveNotification` to immediately trigger a state refresh when returning to DNS Switcher.
 5. **Privileged Command Execution**:
    Updates network DNS configuration and clears DNS caches using `NSAppleScript` with administrator authorization (`do shell script ... with administrator privileges`).
+6. **Latency Benchmarking & Auto-Selection**:
+   - `runBenchmark()`: Collects all unique server IPs (Fast DNS presets + SmartDNS catalog), dispatches concurrent probes via `DNSBenchmarkEngine`, and publishes results to `serverLatencies`.
+   - `autoSelectFastestFastDNS()`: Selects the Fast DNS preset with the lowest measured primary IP latency.
+   - `autoSelectFastestSmartDNSPair()`: Ranks all SmartDNS servers by latency and assigns the top two as Primary and Secondary.
 
 ### 3.4 `SettingsView.swift` (Segmented Settings Panel)
 - **Role**: Dedicated SwiftUI settings panel with segmented navigation:
   - **⚡ Fast Browsing Tab**: Rich provider cards for Cloudflare, Google, and Quad9 with speed/privacy/security details and 1-click apply.
   - **📺 SmartDNS Tab**: Curated UK & European 2-server paired presets and custom Primary/Secondary dropdown pickers.
+- **Benchmark Toolbar**:
+  - **"Test Speeds" Button**: Triggers a full concurrent benchmark run across all servers. Displays a spinning progress indicator during execution.
+  - **"Auto-Select Fastest" Button**: Analyses benchmark results and automatically selects the lowest-latency server(s) for the active tab.
+- **Latency Badges (`LatencyBadge` View)**: Reusable color-coded badge component displayed alongside every server card, preset row, and dropdown option:
+  - 🟢 `< 35 ms` (Green): Ultra-fast — ideal for instant 4K ramp-up and zero bufferbloat.
+  - 🟡 `35–80 ms` (Orange): Standard performance.
+  - 🔴 `> 80 ms` (Red): High latency — cross-continental routing.
+  - ⚪ `-- ms` (Grey): Not yet tested.
+- **Auto-Benchmark on Appear**: Automatically runs a benchmark when the Settings panel opens and no prior results exist.
 
 ### 3.5 `ContentView.swift` (Main Dashboard View)
 - **Role**: Modern SwiftUI View rendered inside the menu bar popover.
 - **Features**:
   - **Status Card**: Visual badges (`modeBadgeView`) displaying current active interface, active DNS IPs with provider badges (`⚡ Cloudflare`, `🌐 Google`, `🛡️ Quad9`) and SmartDNS city/flag badges, mode status (`🚀 FAST BROWSING`, `⚡ STREAMING`, `🌐 AUTOMATIC`, or `⚙️ MANUAL DNS`), and color-coded Private Relay state badge.
   - **Active Target Indicator**: Displays selected target (Fast DNS provider or SmartDNS pair) with quick access to settings.
+  - **Latency Tags**: Displays measured latency (ms) with color-coded `LatencyBadge` next to each active DNS server IP in the status card.
   - **Dynamic Mode Action Buttons**:
     - **Fast Browsing Button**: Vibrant purple styling (`Color.purple`) with quick switch pills for 1-click toggling between Cloudflare, Google, and Quad9.
     - **Stream Mode Button**: Displays active bright green (`Color.green`) for SmartDNS.
@@ -116,12 +134,24 @@ The application follows an Event-Driven MVVM Architecture using SwiftUI and Comb
   - **Context Notes**: Shows provider features in Fast Browsing mode, or Safari Private Relay guidance in Stream mode.
   - **Quick Utility Toolbar**: One-click DNS cache flush (`dscacheutil -flushcache && killall -HUP mDNSResponder`), direct preferences link, and SmartDNSProxy web portal launcher.
 
+### 3.6 `DNSBenchmarkEngine.swift` (Latency Probe Engine)
+- **Role**: Singleton (`DNSBenchmarkEngine.shared`) that measures real DNS query round-trip latency to any server IP using raw UDP socket probes.
+- **Implementation Details**:
+  - **DNS Query Construction**: Builds a minimal RFC 1035-compliant DNS query packet (12-byte header + A-record question for `apple.com`) with a fixed transaction ID (`0x1A2B`) for response verification.
+  - **Socket Layer**: Uses POSIX BSD sockets (`socket()`, `sendto()`, `recvfrom()`) with `SOCK_DGRAM` / `IPPROTO_UDP` to send queries to port 53. Configures `SO_RCVTIMEO` and `SO_SNDTIMEO` for a 1.5-second timeout.
+  - **Precision Timing**: Measures elapsed nanoseconds between `sendto()` and `recvfrom()` using `DispatchTime.now().uptimeNanoseconds`, converting to integer milliseconds.
+  - **Response Validation**: Verifies that the received packet contains at least 12 bytes (minimum DNS header) and that the transaction ID matches the original query, preventing false positives from stale or spoofed responses.
+  - **Concurrency**:
+    - `probeLatency(serverIP:)`: Wraps the synchronous BSD socket call in `withCheckedContinuation` dispatched to `DispatchQueue.global(qos: .userInitiated)` for non-blocking async usage.
+    - `probeAll(ips:)`: Uses Swift structured concurrency `withTaskGroup` to probe all server IPs in parallel, returning a `[String: Int]` dictionary of IP → latency (ms).
+  - **Sendable Safety**: Conforms to `Sendable` protocol for safe concurrent access across task groups.
+
 ---
 
 ## 4. Build & Distribution System (`build_app.sh`)
 
 The standalone application bundle is built using a custom shell build pipeline:
-1. **Swift Compilation**: Uses `swiftc -O -parse-as-library -target arm64-apple-macosx13.0` to compile all source files into a standalone arm64 Mach-O binary.
+1. **Swift Compilation**: Uses `swiftc -O -parse-as-library -target arm64-apple-macosx13.0` to compile all source files (`DNS_SwitcherApp.swift`, `ContentView.swift`, `SettingsView.swift`, `SmartDNSServer.swift`, `DNSManager.swift`, `DNSBenchmarkEngine.swift`) into a standalone arm64 Mach-O binary.
 2. **Icon Asset Generation**: Converts `AppIcon.png` into standard `.iconset` resolutions (`16x16` up to `1024x1024@2x`) using `sips -s format png`, then compiles `AppIcon.icns` via `iconutil`.
 3. **App Bundle Assembly**: Creates the standard macOS `.app` bundle structure:
    - `DNS Switcher.app/Contents/MacOS/DNS Switcher`

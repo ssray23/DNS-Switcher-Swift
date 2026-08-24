@@ -120,6 +120,10 @@ struct ContentView: View {
                                         .foregroundColor(.green)
                                         .cornerRadius(4)
                                 }
+                                
+                                if let lat = dnsManager.latency(forIP: ip) {
+                                    LatencyBadge(latency: lat)
+                                }
                             }
                         }
                     }

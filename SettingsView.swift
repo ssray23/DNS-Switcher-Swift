@@ -7,6 +7,52 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+struct LatencyBadge: View {
+    let latency: Int?
+    
+    var body: some View {
+        if let ms = latency {
+            HStack(spacing: 3) {
+                Circle()
+                    .fill(dotColor(for: ms))
+                    .frame(width: 6, height: 6)
+                Text("\(ms) ms")
+                    .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                    .foregroundColor(textColor(for: ms))
+            }
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(dotColor(for: ms).opacity(0.12))
+            .cornerRadius(4)
+        } else {
+            HStack(spacing: 3) {
+                Circle()
+                    .fill(Color.secondary.opacity(0.4))
+                    .frame(width: 5, height: 5)
+                Text("-- ms")
+                    .font(.system(size: 9, design: .monospaced))
+                    .foregroundColor(.secondary)
+            }
+            .padding(.horizontal, 5)
+            .padding(.vertical, 2)
+            .background(Color.secondary.opacity(0.08))
+            .cornerRadius(4)
+        }
+    }
+    
+    private func dotColor(for ms: Int) -> Color {
+        if ms < 35 { return .green }
+        if ms < 80 { return .orange }
+        return .red
+    }
+    
+    private func textColor(for ms: Int) -> Color {
+        if ms < 35 { return .green }
+        if ms < 80 { return .orange }
+        return .red
+    }
+}
+
 struct SettingsView: View {
     @ObservedObject var dnsManager: DNSManager
     var onBack: () -> Void
@@ -33,7 +79,7 @@ struct SettingsView: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
             // Header Bar
             HStack {
                 Button(action: onBack) {
@@ -70,6 +116,69 @@ struct SettingsView: View {
             .pickerStyle(.segmented)
             .labelsHidden()
             
+            // Benchmark Action Bar
+            HStack {
+                Button(action: {
+                    dnsManager.runBenchmark()
+                }) {
+                    HStack(spacing: 4) {
+                        if dnsManager.isBenchmarking {
+                            ProgressView()
+                                .controlSize(.small)
+                                .scaleEffect(0.65)
+                        } else {
+                            Image(systemName: "speedometer")
+                                .font(.caption2)
+                        }
+                        Text(dnsManager.isBenchmarking ? "Testing..." : "Test Speeds")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color(NSColor.controlBackgroundColor))
+                    .cornerRadius(6)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+                    )
+                }
+                .buttonStyle(.plain)
+                .disabled(dnsManager.isBenchmarking)
+                
+                Spacer()
+                
+                Button(action: {
+                    if selectedTab == .fastBrowsing {
+                        if let fastest = dnsManager.autoSelectFastestFastDNS() {
+                            selectedFast = fastest
+                        }
+                    } else {
+                        if let (p, s) = dnsManager.autoSelectFastestSmartDNSPair() {
+                            selectedPrimary = p
+                            selectedSecondary = s
+                        }
+                    }
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "sparkles")
+                            .font(.caption2)
+                            .foregroundColor(.orange)
+                        Text("Auto-Select Fastest")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.blue.opacity(0.12))
+                    .foregroundColor(.blue)
+                    .cornerRadius(6)
+                }
+                .buttonStyle(.plain)
+                .disabled(dnsManager.isBenchmarking || dnsManager.serverLatencies.isEmpty)
+                .help(dnsManager.serverLatencies.isEmpty ? "Click 'Test Speeds' first to measure latencies" : "Selects lowest-latency servers automatically")
+            }
+            
             Divider()
             
             // Tab Content
@@ -80,7 +189,12 @@ struct SettingsView: View {
             }
         }
         .padding(16)
-        .frame(width: 360, height: 500)
+        .frame(width: 360, height: 530)
+        .onAppear {
+            if dnsManager.serverLatencies.isEmpty {
+                dnsManager.runBenchmark()
+            }
+        }
     }
     
     // MARK: - Fast Browsing Tab Content
@@ -96,6 +210,7 @@ struct SettingsView: View {
                     ForEach(FastDNSCatalog.allPresets) { preset in
                         let isSelected = (selectedFast.id == preset.id)
                         let isCurrentlyActive = (dnsManager.currentMode == .fastBrowsing && dnsManager.selectedFastPreset.id == preset.id)
+                        let latency = dnsManager.latency(forFastPreset: preset)
                         
                         Button(action: {
                             selectedFast = preset
@@ -111,6 +226,8 @@ struct SettingsView: View {
                                             .fontWeight(.bold)
                                             .foregroundColor(isSelected ? .purple : .primary)
                                     }
+                                    
+                                    LatencyBadge(latency: latency)
                                     
                                     Spacer()
                                     
@@ -168,9 +285,14 @@ struct SettingsView: View {
                         Text("Selected Provider:")
                             .font(.caption2)
                             .foregroundColor(.secondary)
-                        Text("\(selectedFast.icon) \(selectedFast.name) (\(selectedFast.formattedIPs))")
-                            .font(.caption)
-                            .fontWeight(.semibold)
+                        HStack(spacing: 6) {
+                            Text("\(selectedFast.icon) \(selectedFast.name) (\(selectedFast.formattedIPs))")
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                            if let lat = dnsManager.latency(forFastPreset: selectedFast) {
+                                LatencyBadge(latency: lat)
+                            }
+                        }
                     }
                     
                     Spacer()
@@ -222,6 +344,9 @@ struct SettingsView: View {
                         VStack(spacing: 6) {
                             ForEach(dnsManager.presets) { preset in
                                 let isSelected = (selectedPrimary == preset.primary && selectedSecondary == preset.secondary)
+                                let pLat = dnsManager.latency(forServer: preset.primary)
+                                let sLat = dnsManager.latency(forServer: preset.secondary)
+                                
                                 HStack(spacing: 0) {
                                     Button(action: {
                                         selectedPrimary = preset.primary
@@ -229,10 +354,19 @@ struct SettingsView: View {
                                     }) {
                                         HStack {
                                             VStack(alignment: .leading, spacing: 2) {
-                                                Text(preset.name)
-                                                    .font(.caption)
-                                                    .fontWeight(isSelected ? .bold : .medium)
-                                                    .foregroundColor(isSelected ? .blue : .primary)
+                                                HStack(spacing: 6) {
+                                                    Text(preset.name)
+                                                        .font(.caption)
+                                                        .fontWeight(isSelected ? .bold : .medium)
+                                                        .foregroundColor(isSelected ? .blue : .primary)
+                                                    
+                                                    if let l = pLat {
+                                                        LatencyBadge(latency: l)
+                                                    }
+                                                    if let l2 = sLat {
+                                                        LatencyBadge(latency: l2)
+                                                    }
+                                                }
                                                 
                                                 Text("\(preset.primary.ip)  •  \(preset.secondary.ip)")
                                                     .font(.system(size: 10, design: .monospaced))
@@ -286,15 +420,22 @@ struct SettingsView: View {
                         
                         // Primary Server Picker
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("1. Primary DNS Server:")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
+                            HStack {
+                                Text("1. Primary DNS Server:")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                                if let lat = dnsManager.latency(forServer: selectedPrimary) {
+                                    LatencyBadge(latency: lat)
+                                }
+                            }
                             
                             Picker("", selection: $selectedPrimary) {
                                 ForEach(ServerRegion.allCases, id: \.self) { region in
                                     Section(header: Text(region.rawValue)) {
                                         ForEach(SmartDNSCatalog.allServers.filter { $0.region == region }) { server in
-                                            Text("\(server.flag) \(server.city) (\(server.ip))")
+                                            let latText = dnsManager.latency(forServer: server).map { " (\($0) ms)" } ?? ""
+                                            Text("\(server.flag) \(server.city)\(latText) - \(server.ip)")
                                                 .tag(server)
                                         }
                                     }
@@ -305,15 +446,22 @@ struct SettingsView: View {
                         
                         // Secondary Server Picker
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("2. Secondary DNS Server (Fallback):")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
+                            HStack {
+                                Text("2. Secondary DNS Server (Fallback):")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                                if let lat = dnsManager.latency(forServer: selectedSecondary) {
+                                    LatencyBadge(latency: lat)
+                                }
+                            }
                             
                             Picker("", selection: $selectedSecondary) {
                                 ForEach(ServerRegion.allCases, id: \.self) { region in
                                     Section(header: Text(region.rawValue)) {
                                         ForEach(SmartDNSCatalog.allServers.filter { $0.region == region }) { server in
-                                            Text("\(server.flag) \(server.city) (\(server.ip))")
+                                            let latText = dnsManager.latency(forServer: server).map { " (\($0) ms)" } ?? ""
+                                            Text("\(server.flag) \(server.city)\(latText) - \(server.ip)")
                                                 .tag(server)
                                         }
                                     }

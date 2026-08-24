@@ -22,6 +22,8 @@ A sleek, native macOS menu bar status application built in Swift & SwiftUI to se
 - 🧹 **DNS Cache Flushing**: One-click flush for macOS `dscacheutil` and `mDNSResponder`.
 - ⚙️ **Direct Preferences Link**: Interactive `Manage...` button to open macOS Internet Privacy settings for Private Relay toggles.
 - 🎨 **Native macOS Menu Bar App**: Runs unobtrusively in the menu bar with dark/light mode support.
+- ⏱️ **DNS Speed & Latency Benchmark Engine**: Measures real-time DNS query round-trip latency (ms) across all servers concurrently using raw UDP probes on port 53. Displays color-coded latency badges (🟢 `< 35 ms`, 🟡 `35–80 ms`, 🔴 `> 80 ms`) next to every server.
+- ✨ **Auto-Select Fastest Server**: One-click automatic selection of the lowest-latency Fast DNS preset or SmartDNS Primary/Secondary pair — optimised for minimal buffering and fastest transition to 4K/highest resolution streaming.
 
 ---
 

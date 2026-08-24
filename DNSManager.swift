@@ -56,6 +56,10 @@ class DNSManager: ObservableObject {
     @Published var isUpdating: Bool = false
     @Published var lastMessage: String? = nil
     
+    // Benchmarking & Latency
+    @Published var serverLatencies: [String: Int] = [:]
+    @Published var isBenchmarking: Bool = false
+    
     private var refreshTimer: Timer?
     
     init() {
@@ -136,6 +140,72 @@ class DNSManager: ObservableObject {
     
     func fastPresetForIP(_ ip: String) -> FastDNSPreset? {
         FastDNSCatalog.provider(forIP: ip)
+    }
+    
+    // MARK: - Latency & Benchmarking
+    
+    func latency(forIP ip: String) -> Int? {
+        serverLatencies[ip]
+    }
+    
+    func latency(forFastPreset preset: FastDNSPreset) -> Int? {
+        serverLatencies[preset.primaryIP]
+    }
+    
+    func latency(forServer server: SmartDNSServer) -> Int? {
+        serverLatencies[server.ip]
+    }
+    
+    func runBenchmark(completion: (() -> Void)? = nil) {
+        guard !isBenchmarking else { return }
+        isBenchmarking = true
+        
+        var allIPs = Set<String>()
+        for preset in FastDNSCatalog.allPresets {
+            allIPs.formUnion(preset.ips)
+        }
+        for server in SmartDNSCatalog.allServers {
+            allIPs.insert(server.ip)
+        }
+        
+        Task {
+            let latencies = await DNSBenchmarkEngine.shared.probeAll(ips: Array(allIPs), timeoutSeconds: 1.5)
+            await MainActor.run {
+                self.serverLatencies = latencies
+                self.isBenchmarking = false
+                completion?()
+            }
+        }
+    }
+    
+    @discardableResult
+    func autoSelectFastestFastDNS() -> FastDNSPreset? {
+        let tested = FastDNSCatalog.allPresets.compactMap { preset -> (FastDNSPreset, Int)? in
+            guard let lat = latency(forFastPreset: preset) else { return nil }
+            return (preset, lat)
+        }
+        guard let fastest = tested.min(by: { $0.1 < $1.1 })?.0 else {
+            return nil
+        }
+        self.selectedFastPreset = fastest
+        return fastest
+    }
+    
+    @discardableResult
+    func autoSelectFastestSmartDNSPair() -> (primary: SmartDNSServer, secondary: SmartDNSServer)? {
+        let tested = SmartDNSCatalog.allServers.compactMap { server -> (SmartDNSServer, Int)? in
+            guard let lat = latency(forServer: server) else { return nil }
+            return (server, lat)
+        }
+        let sorted = tested.sorted(by: { $0.1 < $1.1 }).map { $0.0 }
+        guard sorted.count >= 2 else {
+            return nil
+        }
+        let bestPrimary = sorted[0]
+        let bestSecondary = sorted[1]
+        self.primaryServer = bestPrimary
+        self.secondaryServer = bestSecondary
+        return (bestPrimary, bestSecondary)
     }
     
     func startAutoRefresh() {
